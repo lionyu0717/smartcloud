@@ -1,0 +1,18 @@
+{
+  "name": "smartcloud",
+  "version": "1.0.0",
+  "description": "## 基础信息 - 项目名称：智云课堂字幕导出助手 - 项目类型：Chrome浏览器插件 - 需求优先级：中等 - 目标用户：浙江大学智云课堂平台的学生用户",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "docx": "^9.1.0"
+  }
+}
