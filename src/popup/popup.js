@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 bilingual: response.data.bilingualText
             };
             
-            status.textContent = '提取成功！';
+            status.textContent = `提取成功！(${response.data.location})`;
             extractBtn.textContent = '导出文字稿';
             previewBtn.disabled = false;
             updateProgress(100);

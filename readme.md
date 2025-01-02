@@ -2,23 +2,24 @@
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-一个用于导出浙江大学智云课堂视频字幕的 Chrome 浏览器插件。支持导出中文、英文和双语字幕，并提供多种文件格式选择。
+一个用于导出浙江大学智云课堂视频字幕的 Chrome 浏览器插件。支持导出中文、英文和双语字幕，并提供多种文件格式选择。支持东西教和北教不同的课程页面。
 
 ## 功能特点
 
 - 🎯 一键提取智云课堂视频字幕
 - 🌏 支持中文、英文和双语导出
 - 📄 支持多种导出格式（Word、Markdown、纯文本）
+- 🏫 支持东西教和北教不同的课程页面
 - 🎨 简洁直观的用户界面
 - ⚡️ 快速响应，实时进度提示
 
 ## 安装方法
 
 1. 下载插件
-   - 从 [Releases](https://github.com/your-username/smartcloud/releases) 页面下载最新版本
+   - 从 [Releases](https://github.com/lionyu0717/smartcloud/releases) 页面下载最新版本
    - 或克隆仓库后手动构建：
      ```bash
-     git clone https://github.com/your-username/smartcloud.git
+     git clone https://github.com/lionyu0717/smartcloud.git
      cd smartcloud
      npm install
      ```
@@ -31,7 +32,7 @@
 
 ## 使用说明
 
-1. 进入智云课堂视频播放页面
+1. 进入智云课堂视频播放页面（支持东西教和北教）
 2. 点击浏览器工具栏中的插件图标
 3. 选择导出语言（中文/英文/双语）
 4. 选择导出格式（.txt/.docx/.md）
@@ -49,7 +50,7 @@
 
 1. 克隆仓库
    ```bash
-   git clone https://github.com/your-username/smartcloud.git
+   git clone https://github.com/lionyu0717/smartcloud.git
    ```
 
 2. 安装依赖
@@ -88,6 +89,11 @@ smartcloud/
 5. 打开一个 Pull Request
 
 ## 版本历史
+
+- v1.1.0 (2024-01)
+  - ✨ 新增支持北教课程页面
+  - 🔍 自动识别东西教/北教页面
+  - 📝 在界面显示当前教学楼位置
 
 - v1.0.0 (2024-01)
   - 支持基础字幕提取和导出功能

@@ -61,34 +61,59 @@ if (typeof window.transcriptExtractor === 'undefined') {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'extractTranscript') {
         try {
-            // 获取所有字幕元素
-            const transcriptItems = document.querySelectorAll('.trans-item');
+            // 检测页面类型
+            const isNorthCampus = document.querySelector('.trans-lan') !== null;
+            
             let chineseText = '';
             let englishText = '';
             let bilingualText = '';
 
-            transcriptItems.forEach(item => {
-                const chineseElement = item.querySelector('.item-origin');
-                const englishElement = item.querySelector('.item-tanslate-En');
-                
-                if (chineseElement) {
-                    const chineseContent = chineseElement.textContent.trim();
-                    chineseText += chineseContent + '\n\n';
-                    
-                    if (englishElement) {
-                        const englishContent = englishElement.textContent.trim();
-                        englishText += englishContent + '\n\n';
-                        bilingualText += chineseContent + '\n' + englishContent + '\n\n';
+            if (isNorthCampus) {
+                // 北教模式：从 trans-lan 中提取文本
+                const transcriptItems = document.querySelectorAll('.trans-item');
+                transcriptItems.forEach(item => {
+                    const transLan = item.querySelector('.trans-lan');
+                    if (transLan) {
+                        const chineseElement = transLan.querySelector('div[data-v-90a3baac]:first-child');
+                        const englishElement = transLan.querySelector('div[data-v-90a3baac]:last-child');
+                        
+                        if (chineseElement && englishElement) {
+                            const chineseContent = chineseElement.textContent.trim();
+                            const englishContent = englishElement.textContent.trim();
+                            
+                            chineseText += chineseContent + '\n\n';
+                            englishText += englishContent + '\n\n';
+                            bilingualText += chineseContent + '\n' + englishContent + '\n\n';
+                        }
                     }
-                }
-            });
+                });
+            } else {
+                // 东西教模式：从 item-origin 和 item-tanslate-En 中提取文本
+                const transcriptItems = document.querySelectorAll('.trans-item');
+                transcriptItems.forEach(item => {
+                    const chineseElement = item.querySelector('.item-origin');
+                    const englishElement = item.querySelector('.item-tanslate-En');
+                    
+                    if (chineseElement) {
+                        const chineseContent = chineseElement.textContent.trim();
+                        chineseText += chineseContent + '\n\n';
+                        
+                        if (englishElement) {
+                            const englishContent = englishElement.textContent.trim();
+                            englishText += englishContent + '\n\n';
+                            bilingualText += chineseContent + '\n' + englishContent + '\n\n';
+                        }
+                    }
+                });
+            }
 
             sendResponse({
                 success: true,
                 data: {
                     chineseText: chineseText.trim(),
                     englishText: englishText.trim(),
-                    bilingualText: bilingualText.trim()
+                    bilingualText: bilingualText.trim(),
+                    location: isNorthCampus ? '北教' : '东西教'
                 }
             });
         } catch (error) {
