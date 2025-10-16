@@ -2,44 +2,614 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <script src="../lib/docx.min.js"></script>
+    <script src="/lib/docx.min.js"></script>
+    <script src="/lib/pdfmake.min.js"></script>
+    <script src="/lib/vfs_fonts.js"></script>
     <style>
         body {
-            width: 300px;
-            padding: 15px;
+            width: 320px;
+            padding: 16px;
+            font-family: system-ui;
         }
-        select, button {
-            margin: 5px 0;
-            padding: 5px;
-            width: 100%;
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
-        button {
-            background: #1a73e8;
-            color: white;
-            border: none;
+
+        .format-select {
             padding: 8px;
             border-radius: 4px;
+            border: 1px solid #ddd;
+            margin-bottom: 12px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        button {
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: none;
+            background: #1a73e8;
+            color: white;
             cursor: pointer;
         }
+
         button:disabled {
             background: #ccc;
-            cursor: not-allowed;
         }
-        select {
+
+        .preview-container {
+            margin-top: 12px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .progress {
+            height: 4px;
+            background: #f0f0f0;
+            border-radius: 2px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #1a73e8;
+            width: 0;
+            transition: width 0.3s;
+        }
+
+        #status {
+            color: #666;
+            font-size: 14px;
+            margin: 8px 0;
+        }
+
+        .pdf-settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        
+        .pdf-settings-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 500px;
+        }
+        
+        .settings-group {
+            margin-bottom: 15px;
+        }
+        
+        .settings-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        
+        .settings-group select,
+        .settings-group input {
+            width: 100%;
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
+        
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .modal-buttons button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .cancel-btn {
+            background: #f0f0f0;
+        }
+        
+        .confirm-btn {
+            background: #1a73e8;
+            color: white;
+        }
+
+        .settings-preview-container {
+            display: flex;
+            gap: 20px;
+            max-height: 80vh;
+        }
+        
+        .settings-panel {
+            flex: 0 0 200px;
+        }
+        
+        .preview-panel {
+            flex: 1;
+            border-left: 1px solid #ddd;
+            padding-left: 20px;
+            overflow: hidden;
+        }
+        
+        .pdf-preview {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 4px;
+            height: calc(100% - 40px);
+            overflow-y: auto;
+        }
+        
+        .preview-page {
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin: 0 auto;
+            max-width: 21cm; /* A4 宽度 */
+            min-height: 29.7cm; /* A4 高度 */
+        }
+        
+        .preview-content {
+            font-family: var(--preview-font);
+            font-size: var(--preview-size);
+            line-height: var(--preview-line-height);
+        }
+        
+        .preview-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* 报纸风格 */
+        .theme-newsprint {
+            font-family: "Times New Roman", SimSun, serif;
+            column-count: 1;
+            text-align: justify;
+        }
+        
+        .theme-newsprint h1 {
+            font-family: "Times New Roman", SimSun, serif;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+        }
+        
+        /* 简约白风格 */
+        .theme-whitey {
+            font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif;
+            line-height: 1.8;
+            max-width: 750px;
+            margin: 0 auto;
+        }
+        
+        .theme-whitey h1 {
+            font-weight: 300;
+            letter-spacing: -1px;
+        }
+        
+        /* 学术论文风格 */
+        .theme-academic {
+            font-family: "Times New Roman", SimSun, serif;
+            line-height: 1.6;
+        }
+        
+        .theme-academic h1 {
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        /* 优雅风格 */
+        .theme-elegant {
+            font-family: "Noto Serif SC", SimSun, serif;
+            line-height: 1.7;
+        }
+        
+        .theme-elegant h1 {
+            font-family: "Noto Serif SC", SimSun, serif;
+            text-align: center;
+            color: #333;
+        }
+
+        .pdf-preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #f0f0f0;
+            z-index: 1000;
+        }
+
+        .preview-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: #fff;
+            border-bottom: 1px solid #ddd;
+            height: 50px;
+        }
+
+        .preview-title {
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .toolbar-btn {
+            padding: 8px 16px;
+            margin-left: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .toolbar-btn:hover {
+            background: #e0e0e0;
+        }
+
+        #printPdf {
+            background: #1a73e8;
+            color: white;
+        }
+
+        .preview-container {
+            display: flex;
+            height: calc(100vh - 50px);
+        }
+
+        .settings-sidebar {
+            width: 250px;
+            background: white;
+            padding: 20px;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+        }
+
+        .preview-main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .preview-page {
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin: 0 auto;
+            width: 21cm; /* A4 默认宽度 */
+            min-height: 29.7cm; /* A4 默认高度 */
+        }
+
+        .setting-input {
+            width: 100%;
+            padding: 8px;
+            margin-top: 4px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .settings-group {
+            margin-bottom: 15px;
+        }
+
+        .settings-group label {
+            display: block;
+            margin-bottom: 4px;
+            color: #333;
+        }
+
+        .preview-controls-left,
+        .preview-controls-center,
+        .preview-controls-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .page-info {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .page-info input {
+            width: 50px;
+            text-align: center;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .zoom-select {
+            width: 100px;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .preview-scroll-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .preview-pages {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .preview-page {
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            transform-origin: top center;
+        }
+
+        .page-number {
+            text-align: center;
+            color: #666;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+
+        .toolbar-btn.primary {
+            background: #1a73e8;
+            color: white;
+        }
+
+        .toolbar-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
-    <select id="formatSelect">
-        <option value="txt">文本文件 (.txt)</option>
-        <option value="docx">Word文档 (.docx)</option>
-        <option value="md">Markdown文件 (.md)</option>
-    </select>
-    <button id="extractText">提取文字稿</button>
-    <button id="exportButton" disabled>导出文件</button>
+    <div class="container">
+        <select id="languageSelect" class="format-select">
+            <option value="chinese">仅中文</option>
+            <option value="english">仅英文</option>
+            <option value="bilingual">中英双语</option>
+        </select>
+
+        <select id="formatSelect" class="format-select">
+            <option value="txt">文本文件 (.txt)</option>
+            <option value="docx">Word文档 (.docx)</option>
+            <option value="md">Markdown (.md)</option>
+        </select>
+
+        <div class="button-group">
+            <button id="extractBtn">提取文字稿</button>
+            <button id="previewBtn" disabled>预览内容</button>
+        </div>
+
+        <div id="progress" class="progress">
+            <div id="progressBar" class="progress-bar"></div>
+        </div>
+
+        <div id="status"></div>
+
+        <div id="previewContainer" class="preview-container">
+            <div id="previewContent"></div>
+        </div>
+    </div>
+
+    <!-- PDF设置对话框 -->
+    <div id="pdfSettingsModal" class="pdf-settings-modal">
+        <div class="pdf-settings-content">
+            <div class="settings-preview-container">
+                <div class="settings-panel">
+                    <h3>PDF 导出设置</h3>
+                    
+                    <div class="settings-group">
+                        <label>页面大小</label>
+                        <select id="pageSize">
+                            <option value="A4">A4</option>
+                            <option value="A5">A5</option>
+                            <option value="LETTER">信纸</option>
+                        </select>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label>字体</label>
+                        <select id="fontFamily">
+                            <option value="NotoSansSC">思源黑体</option>
+                            <option value="SimSun">宋体</option>
+                            <option value="Microsoft YaHei">微软雅黑</option>
+                        </select>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label>正文字号</label>
+                        <select id="fontSize">
+                            <option value="10">10</option>
+                            <option value="12" selected>12</option>
+                            <option value="14">14</option>
+                            <option value="16">16</option>
+                        </select>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label>页边距 (毫米)</label>
+                        <input type="number" id="margin" value="20" min="0" max="100">
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label>行间距</label>
+                        <select id="lineHeight">
+                            <option value="1">1</option>
+                            <option value="1.5" selected>1.5</option>
+                            <option value="2">2</option>
+                        </select>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label>主题样式</label>
+                        <select id="pdfTheme">
+                            <option value="default">默认</option>
+                            <option value="newsprint">报纸风格 (Newsprint)</option>
+                            <option value="whitey">简约白 (Whitey)</option>
+                            <option value="academic">学术论文</option>
+                            <option value="elegant">优雅</option>
+                        </select>
+                    </div>
+                    
+                    <div class="modal-buttons">
+                        <button class="preview-btn" id="previewPdfSettings">预览</button>
+                        <button class="cancel-btn" id="cancelPdfSettings">取消</button>
+                        <button class="confirm-btn" id="confirmPdfSettings">确认</button>
+                    </div>
+                </div>
+                
+                <div class="preview-panel">
+                    <h3>预览</h3>
+                    <div id="pdfPreview" class="pdf-preview">
+                        <div class="preview-page">
+                            <div id="previewContent" class="preview-content">
+                                <!-- 预览内容将在这里动态更新 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加全屏预览窗口 -->
+    <div id="pdfPreviewModal" class="pdf-preview-modal">
+        <div class="preview-toolbar">
+            <div class="preview-controls-left">
+                <button id="prevPage" class="toolbar-btn" disabled>上一页</button>
+                <span class="page-info">
+                    第 <input type="number" id="currentPage" value="1" min="1"> / <span id="totalPages">1</span> 页
+                </span>
+                <button id="nextPage" class="toolbar-btn">下一页</button>
+            </div>
+            <div class="preview-controls-center">
+                <div class="zoom-controls">
+                    <button id="zoomOut" class="toolbar-btn">-</button>
+                    <select id="zoomLevel" class="zoom-select">
+                        <option value="0.5">50%</option>
+                        <option value="0.75">75%</option>
+                        <option value="1" selected>100%</option>
+                        <option value="1.25">125%</option>
+                        <option value="1.5">150%</option>
+                        <option value="2">200%</option>
+                        <option value="fit">适合页面</option>
+                    </select>
+                    <button id="zoomIn" class="toolbar-btn">+</button>
+                </div>
+            </div>
+            <div class="preview-controls-right">
+                <button id="printPdf" class="toolbar-btn primary">导出 PDF</button>
+                <button id="closePdfPreview" class="toolbar-btn">关闭</button>
+            </div>
+        </div>
+
+        <div class="preview-container">
+            <div class="settings-sidebar">
+                <div class="settings-section">
+                    <h3>页面设置</h3>
+                    <div class="settings-group">
+                        <label>主题样式</label>
+                        <select id="pdfTheme" class="setting-input">
+                            <option value="default">默认</option>
+                            <option value="newsprint">报纸风格</option>
+                            <option value="whitey">简约白</option>
+                            <option value="academic">学术论文</option>
+                            <option value="elegant">优雅</option>
+                        </select>
+                    </div>
+                    <div class="settings-group">
+                        <label>页面大小</label>
+                        <select id="pageSize" class="setting-input">
+                            <option value="A4">A4</option>
+                            <option value="A5">A5</option>
+                            <option value="LETTER">信纸</option>
+                        </select>
+                    </div>
+                    <div class="settings-group">
+                        <label>字体</label>
+                        <select id="fontFamily" class="setting-input">
+                            <option value="SimSun">宋体</option>
+                            <option value="Microsoft YaHei">微软雅黑</option>
+                            <option value="NotoSansSC">思源黑体</option>
+                        </select>
+                    </div>
+                    <div class="settings-group">
+                        <label>正文字号</label>
+                        <select id="fontSize" class="setting-input">
+                            <option value="10">10</option>
+                            <option value="12" selected>12</option>
+                            <option value="14">14</option>
+                            <option value="16">16</option>
+                        </select>
+                    </div>
+                    <div class="settings-group">
+                        <label>页边距 (毫米)</label>
+                        <input type="number" id="margin" value="20" min="0" max="100" class="setting-input">
+                    </div>
+                    <div class="settings-group">
+                        <label>页码设置</label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="showPageNumber" checked>
+                            <label for="showPageNumber">显示页码</label>
+                        </div>
+                        <select id="pageNumberPosition" class="setting-input">
+                            <option value="bottom-center">底部居中</option>
+                            <option value="bottom-right">底部右侧</option>
+                            <option value="top-center">顶部居中</option>
+                            <option value="top-right">顶部右侧</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="preview-main">
+                <div class="preview-scroll-container">
+                    <div id="previewPages" class="preview-pages">
+                        <!-- 页面将动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <script src="popup.js"></script>
 </body>
 </html>
