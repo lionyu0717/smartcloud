@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <script src="../lib/docx.min.js"></script>
+    <style>
+        body {
+            width: 300px;
+            padding: 15px;
+        }
+        select, button {
+            margin: 5px 0;
+            padding: 5px;
+            width: 100%;
+        }
+        button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <select id="formatSelect">
+        <option value="txt">文本文件 (.txt)</option>
+        <option value="docx">Word文档 (.docx)</option>
+        <option value="md">Markdown文件 (.md)</option>
+    </select>
+    <button id="extractText">提取文字稿</button>
+    <button id="exportButton" disabled>导出文件</button>
+    <script src="popup.js"></script>
+</body>
+</html>
