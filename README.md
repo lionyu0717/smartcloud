@@ -1,5 +1,7 @@
 # SmartCloud Subtitle Export Assistant
 
+[简体中文](./README.zh-CN.md) | English
+
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A Chrome browser extension for exporting video subtitles from Zhejiang University's SmartCloud classroom platform. Supports exporting Chinese, English, and bilingual subtitles in multiple file formats. Compatible with both East-West Campus and North Campus course pages.
