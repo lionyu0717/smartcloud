@@ -6,6 +6,7 @@
     <script src="/lib/jspdf.umd.min.js"></script>
     <script src="format.js"></script>
     <script src="slides.js"></script>
+    <script src="media.js"></script>
     <style>
         body {
             width: 340px;
@@ -176,7 +177,8 @@
                 <button id="pptPdfBtn">导出 PPT 截图 (PDF)</button>
                 <button id="coursewareBtn" class="secondary">下载原始课件</button>
             </div>
-            <p class="hint">导出过程中请保持此弹窗打开。</p>
+            <button id="notesBtn">生成图文笔记（PPT + 讲解文字）</button>
+            <p class="hint">导出过程中请保持此弹窗打开；图文笔记会在新标签页中生成。</p>
         </div>
 
         <div id="progress" class="progress">

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>图文笔记</title>
+    <script src="/lib/docx.min.js"></script>
+    <script src="/lib/jszip.min.js"></script>
+    <script src="/src/popup/format.js"></script>
+    <script src="/src/popup/slides.js"></script>
+    <script src="/src/popup/media.js"></script>
+    <script src="/src/popup/notes.js"></script>
+    <style>
+        :root {
+            --text: #202124;
+            --muted: #5f6368;
+            --border: #e0e0e0;
+            --accent: #1a73e8;
+            --bg: #f8f9fa;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        .toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px 16px;
+            padding: 10px 16px;
+            background: white;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toolbar .group {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px 12px;
+        }
+
+        .toolbar label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 14px;
+        }
+
+        .toolbar select {
+            padding: 4px 6px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+
+        .toolbar button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            background: var(--accent);
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .toolbar button.secondary {
+            background: #e8f0fe;
+            color: var(--accent);
+        }
+
+        .toolbar button:disabled {
+            background: #ccc;
+            color: white;
+            cursor: not-allowed;
+        }
+
+        #status {
+            flex: 1 1 100%;
+            margin: 0;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        main {
+            max-width: 860px;
+            margin: 24px auto;
+            padding: 32px 40px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        main:empty {
+            display: none;
+        }
+
+        h1 {
+            margin: 0 0 4px;
+            font-size: 24px;
+        }
+
+        .meta {
+            margin: 0 0 24px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .segment {
+            padding: 16px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .segment h2 {
+            margin: 0 0 8px;
+            font-size: 15px;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .segment img {
+            display: block;
+            max-width: 100%;
+            margin: 0 auto 12px;
+            border: 1px solid var(--border);
+            break-inside: avoid;
+        }
+
+        .segment p {
+            margin: 0 0 8px;
+            white-space: pre-wrap;
+        }
+
+        .segment .time {
+            margin-right: 6px;
+            color: var(--accent);
+            font-size: 13px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .segment .empty {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        @media (max-width: 600px) {
+            main {
+                margin: 0;
+                padding: 16px;
+                border: none;
+                border-radius: 0;
+            }
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+
+            .toolbar {
+                display: none;
+            }
+
+            main {
+                max-width: none;
+                margin: 0;
+                padding: 0;
+                border: none;
+            }
+
+            .segment h2,
+            .segment img {
+                break-after: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div class="group">
+            <label>文字
+                <select id="languageSelect">
+                    <option value="chinese">仅中文</option>
+                    <option value="english">仅英文</option>
+                    <option value="bilingual">中英双语</option>
+                </select>
+            </label>
+            <label><input type="checkbox" id="timestampCheck" checked> 时间戳</label>
+            <label><input type="checkbox" id="dedupCheck" checked> 合并重复截图</label>
+        </div>
+        <div class="group">
+            <button id="docxBtn" disabled>下载 Word</button>
+            <button id="mdBtn" class="secondary" disabled>下载 Markdown (ZIP)</button>
+            <button id="printBtn" class="secondary" disabled>打印 / 存为 PDF</button>
+        </div>
+        <p id="status">正在准备...</p>
+    </div>
+    <main id="notes"></main>
+    <script src="notes-page.js"></script>
+</body>
+</html>
