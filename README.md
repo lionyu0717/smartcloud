@@ -15,6 +15,7 @@ A Chrome / Edge extension for exporting study materials from Zhejiang University
 - ⏱️ Optional per-paragraph timestamps; file names and titles include the course name, instructor, and lecture time
 - 🖼️ Export the PPT screenshots as a PDF, merging the duplicate shots produced by animations and handwriting
 - 📥 Download the original PPT courseware file (generation is triggered and awaited automatically if needed)
+- 📒 Illustrated notes: each slide followed by what the instructor said while it was shown, exportable as Word, Markdown (ZIP), or PDF via print
 - 🏫 Works on the redesigned replay page as well as the older East-West / North Campus pages
 
 ## Installation
@@ -51,6 +52,14 @@ A Chrome / Edge extension for exporting study materials from Zhejiang University
 - **Export PPT screenshots (PDF)**: merges the PPT frames SmartCloud captured during the lecture into one PDF. "Merge duplicate screenshots" is on by default, keeping only the most complete shot of a slide that was captured several times because of animations or handwriting.
 - **Download original courseware**: downloads the original PPT file. If it has not been generated yet, the extension triggers generation (like the "Export courseware" button on the SmartCloud website) and checks every 10 seconds; long lectures may take a few minutes. Use the screenshot PDF when no original courseware is available.
 
+**Illustrated notes**
+
+Click "Generate illustrated notes" and a new tab aligns the PPT screenshots with the transcript by time: each slide is followed by what the instructor said while it was on screen, and slides the instructor returns to are marked as revisited. In the notes tab you can switch the transcript language, timestamps, and screenshot merging, then:
+
+- **Download Word**: images and text in one .docx, ready for further note-taking
+- **Download Markdown (ZIP)**: a .md file plus an images folder, for Obsidian, Typora, etc.
+- **Print / Save as PDF**: uses the browser's print dialog; choose "Save as PDF" as the destination
+
 > Keep the popup open while exporting. Transcripts and screenshots of a lecture that just ended may not be ready yet; try again later.
 
 ## Development Guide
@@ -84,10 +93,11 @@ A Chrome / Edge extension for exporting study materials from Zhejiang University
 ```
 smartcloud/
 ├── src/
-│   ├── popup/          # Popup (format.js: transcript formatting, slides.js: screenshot de-duplication)
+│   ├── popup/          # Popup (format.js: transcript formatting, slides.js: screenshot de-duplication, notes.js: slide/transcript alignment, media.js: screenshot loading)
+│   ├── notes/          # Illustrated notes page
 │   ├── content/        # Content scripts
 │   └── background/     # Background scripts
-├── lib/               # Third-party libraries (docx, jsPDF)
+├── lib/               # Third-party libraries (docx, jsPDF, JSZip)
 ├── tests/             # Unit tests
 ├── assets/           # Icons and resources
 └── manifest.json     # Extension configuration
@@ -104,6 +114,9 @@ Issues and Pull Requests are welcome!
 5. Open a Pull Request
 
 ## Version History
+
+- v1.4.0 (2026-10)
+  - 📒 Illustrated notes: PPT screenshots aligned with the transcript, exportable as Word, Markdown (ZIP), or PDF via print
 
 - v1.3.0 (2026-10)
   - 🖼️ Export PPT screenshots as PDF with automatic de-duplication
@@ -135,6 +148,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [docx.js](https://github.com/dolanmiu/docx) - Word document generation library
 - [jsPDF](https://github.com/parallax/jsPDF) - PDF generation library
+- [JSZip](https://github.com/Stuk/jszip) (used under the MIT license) - ZIP packaging
+- [ZYNotes](https://github.com/Auspiow/zhiyun-extension) - the idea of slide-plus-transcript notes (no code used)
 - [zju-learning-cli](https://github.com/geniucker-dev/zju-learning-cli) (MIT) - inspiration for the screenshot de-duplication algorithm and SmartCloud API reference
 - [ZJU-Course-Desktop](https://github.com/huharvey/ZJU-Course-Desktop), [Edgeless](https://github.com/StephenChen1108/edgeless-zju-transcript-exporter) - reference for the courseware export API
 - Zhejiang University SmartCloud Classroom Platform

@@ -15,6 +15,7 @@
 - ⏱️ 可在每段前加时间戳；文件名和标题自动带上课程名、教师和上课时间
 - 🖼️ 把 PPT 截图合并导出为 PDF，自动合并动画、板书过程产生的重复截图
 - 📥 一键下载老师课件的原始 PPT 文件（尚未生成时自动发起生成并等待）
+- 📒 生成图文笔记：每页 PPT 下面配上老师讲这一页时说的话，可导出 Word、Markdown（ZIP）或打印为 PDF
 - 🏫 支持改版后的回放页，以及旧版东西教/北教页面
 
 ## 安装方法
@@ -51,6 +52,14 @@
 - **导出 PPT 截图 (PDF)**：把智云在课堂上自动截取的 PPT 画面合并成一个 PDF。默认勾选“合并重复截图”，同一页因动画、板书被截了多次时只保留最完整的一张。
 - **下载原始课件**：下载老师课件的原始 PPT 文件。课件尚未生成时，插件会像智云网页端的“导出课件”一样发起生成，并每 10 秒查询一次（较长的课可能需要几分钟）。没有原始课件时可以改用截图 PDF。
 
+**图文笔记**
+
+点击“生成图文笔记”，插件会在新标签页中按时间把 PPT 截图和讲解文字对齐：每页 PPT 下面是老师讲这一页时说的话，翻回讲过的页会标注“再次讲到”。在笔记页里可以切换文字语言、时间戳和是否合并重复截图，然后：
+
+- **下载 Word**：图片和文字都在一个 .docx 里，方便继续做笔记
+- **下载 Markdown (ZIP)**：.md 文件和 images 文件夹，适合 Obsidian、Typora 等工具
+- **打印 / 存为 PDF**：使用浏览器的打印功能，在“目标打印机”中选择“另存为 PDF”
+
 > 导出过程中请保持弹窗打开。刚结束的课程可能还没有完成语音转写或截图，请稍后再试。
 
 ## 开发指南
@@ -84,10 +93,11 @@
 ```
 smartcloud/
 ├── src/
-│   ├── popup/          # 弹出窗口（format.js 文字稿格式化，slides.js PPT 截图去重）
+│   ├── popup/          # 弹出窗口（format.js 文字稿格式化，slides.js 截图去重，notes.js 图文对齐，media.js 截图下载）
+│   ├── notes/          # 图文笔记页
 │   ├── content/        # 内容脚本
 │   └── background/     # 后台脚本
-├── lib/               # 第三方库（docx、jsPDF）
+├── lib/               # 第三方库（docx、jsPDF、JSZip）
 ├── tests/             # 单元测试
 ├── assets/           # 图标等资源
 └── manifest.json     # 插件配置文件
@@ -104,6 +114,9 @@ smartcloud/
 5. 打开一个 Pull Request
 
 ## 版本历史
+
+- v1.4.0 (2026-10)
+  - 📒 新增图文笔记：PPT 截图与讲解文字按时间对齐，支持导出 Word、Markdown (ZIP) 和打印为 PDF
 
 - v1.3.0 (2026-10)
   - 🖼️ 新增 PPT 截图导出为 PDF，自动合并重复截图
@@ -135,6 +148,8 @@ smartcloud/
 
 - [docx.js](https://github.com/dolanmiu/docx) - Word 文档生成库
 - [jsPDF](https://github.com/parallax/jsPDF) - PDF 生成库
+- [JSZip](https://github.com/Stuk/jszip)（按 MIT 许可使用）- ZIP 打包
+- [ZYNotes](https://github.com/Auspiow/zhiyun-extension) - “PPT 配讲解字幕”笔记的创意来源（未使用其代码）
 - [zju-learning-cli](https://github.com/geniucker-dev/zju-learning-cli)（MIT）- PPT 截图去重算法的思路来源，以及智云接口的参考
 - [ZJU-Course-Desktop](https://github.com/huharvey/ZJU-Course-Desktop)、[无际 Edgeless](https://github.com/StephenChen1108/edgeless-zju-transcript-exporter) - 智云课件导出接口的参考
 - 浙江大学智云课堂平台

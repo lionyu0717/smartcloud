@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const fmt = window.SmartcloudFormat;
     const slidesLib = window.SmartcloudSlides;
+    const { sleep, callTab, downloadBlob, loadSlides } = window.SmartcloudMedia;
 
     const $ = id => document.getElementById(id);
     const courseInfo = $('courseInfo');
@@ -9,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportBtn = $('exportBtn');
     const pptPdfBtn = $('pptPdfBtn');
     const coursewareBtn = $('coursewareBtn');
+    const notesBtn = $('notesBtn');
     const formatSelect = $('formatSelect');
     const languageSelect = $('languageSelect');
     const timestampCheck = $('timestampCheck');
@@ -18,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressBar = $('progressBar');
     const previewContainer = $('previewContainer');
 
-    const actionButtons = [extractBtn, pptPdfBtn, coursewareBtn];
+    const actionButtons = [extractBtn, pptPdfBtn, coursewareBtn, notesBtn];
     let currentTranscript = null; // { items, source, context }
     let currentContext = null;
     let busy = false;
@@ -73,57 +75,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return tab;
     }
 
-    // 向页面发送请求；content script 未注入时（如插件安装前已打开的页面）先注入再重试
     async function callPage(action) {
         const tab = await getZjuTab();
-        let response;
-        try {
-            response = await chrome.tabs.sendMessage(tab.id, { action });
-        } catch (error) {
-            await chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                files: ['src/content/content.js']
-            });
-            response = await chrome.tabs.sendMessage(tab.id, { action });
-        }
-        if (!response || !response.success) {
-            throw new Error(response?.error || '未收到页面响应，请刷新页面后重试');
-        }
-        return response.data;
+        return callTab(tab.id, action);
     }
-
-    async function downloadBlob(blob, filename) {
-        const url = URL.createObjectURL(blob);
-        try {
-            await chrome.downloads.download({ url, filename, saveAs: false });
-        } catch (error) {
-            // downloads API 不可用时退回到 <a download>
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-        }
-        // 延迟释放，避免下载尚未开始就失效
-        setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
-    }
-
-    // 限制并发执行异步任务，保持结果顺序
-    async function mapLimit(list, limit, fn) {
-        const results = new Array(list.length);
-        let next = 0;
-        const workers = Array.from({ length: Math.min(limit, list.length) }, async () => {
-            while (next < list.length) {
-                const index = next++;
-                results[index] = await fn(list[index], index);
-            }
-        });
-        await Promise.all(workers);
-        return results;
-    }
-
-    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
     // ---------- 课程信息 ----------
 
@@ -248,63 +203,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---------- PPT 截图 → PDF ----------
 
-    async function fetchImage(url) {
-        let lastError = null;
-        for (let attempt = 0; attempt < 3; attempt++) {
-            try {
-                const response = await fetch(url, { credentials: 'include' });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const blob = await response.blob();
-                if (!blob.size) throw new Error('空文件');
-                return blob;
-            } catch (error) {
-                lastError = error;
-                await sleep(300 * 2 ** attempt);
-            }
-        }
-        throw lastError;
-    }
-
-    function imageFormat(bytes) {
-        if (bytes[0] === 0xff && bytes[1] === 0xd8) return 'JPEG';
-        if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'PNG';
-        return '';
-    }
-
-    // 下载并解码一张截图：返回 PDF 可用的数据、尺寸和用于去重的灰度缩略图
-    async function loadSlide(slide, withThumbnail) {
-        const blob = await fetchImage(slide.url);
-        const bitmap = await createImageBitmap(blob);
-        const { width, height } = bitmap;
-        let bytes = new Uint8Array(await blob.arrayBuffer());
-        let format = imageFormat(bytes);
-
-        // 非 JPEG/PNG（如 webp）转成 JPEG
-        if (!format) {
-            const canvas = new OffscreenCanvas(width, height);
-            canvas.getContext('2d').drawImage(bitmap, 0, 0);
-            const jpeg = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
-            bytes = new Uint8Array(await jpeg.arrayBuffer());
-            format = 'JPEG';
-        }
-
-        let thumbnail = null;
-        if (withThumbnail) {
-            const w = slidesLib.WIDTH;
-            const h = slidesLib.HEIGHT;
-            const canvas = new OffscreenCanvas(w, h);
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            ctx.drawImage(bitmap, 0, 0, w, h);
-            const rgba = ctx.getImageData(0, 0, w, h).data;
-            thumbnail = new Uint8Array(w * h);
-            for (let i = 0, p = 0; i < thumbnail.length; i++, p += 4) {
-                thumbnail[i] = Math.round(0.299 * rgba[p] + 0.587 * rgba[p + 1] + 0.114 * rgba[p + 2]);
-            }
-        }
-        bitmap.close();
-        return { ...slide, bytes, format, width, height, thumbnail };
-    }
-
     async function exportPptPdf() {
         setStatus('正在获取 PPT 列表...');
         updateProgress(5);
@@ -313,23 +211,12 @@ document.addEventListener('DOMContentLoaded', () => {
         currentContext = context || currentContext;
 
         const dedup = dedupCheck.checked;
-        let done = 0;
-        let failed = 0;
-        const loaded = await mapLimit(slides, 6, async slide => {
-            try {
-                return await loadSlide(slide, dedup);
-            } catch (error) {
-                console.warn('截图下载失败:', slide.url, error);
-                failed++;
-                return null;
-            } finally {
-                done++;
-                setStatus(`正在下载 PPT 截图（${done}/${slides.length}）...`);
-                updateProgress(5 + Math.round((done / slides.length) * 75));
-            }
+        const { slides: loaded, failed } = await loadSlides(slides, dedup, (done, total) => {
+            setStatus(`正在下载 PPT 截图（${done}/${total}）...`);
+            updateProgress(5 + Math.round((done / total) * 75));
         });
 
-        let pages = loaded.filter(Boolean);
+        let pages = loaded;
         if (!pages.length) throw new Error('PPT 截图全部下载失败，请确认已登录智云课堂');
 
         if (dedup && pages.length > 1) {
@@ -406,6 +293,19 @@ document.addEventListener('DOMContentLoaded', () => {
         updateProgress(100);
     }
 
+    // ---------- 图文笔记 ----------
+
+    // 在新标签页中生成图文笔记（处理时间较长，不受弹窗关闭影响）
+    async function openNotes() {
+        const tab = await getZjuTab();
+        const params = new URLSearchParams({
+            tab: tab.id,
+            lang: languageSelect.value,
+            dedup: dedupCheck.checked ? '1' : '0'
+        });
+        await chrome.tabs.create({ url: chrome.runtime.getURL(`src/notes/notes.html?${params}`) });
+    }
+
     // ---------- 事件 ----------
 
     extractBtn.addEventListener('click', () => runTask(extractTranscript));
@@ -413,6 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
     previewBtn.addEventListener('click', previewTranscript);
     pptPdfBtn.addEventListener('click', () => runTask(exportPptPdf));
     coursewareBtn.addEventListener('click', () => runTask(downloadCourseware));
+    notesBtn.addEventListener('click', () => runTask(openNotes));
 
     formatSelect.addEventListener('change', updateButtons);
     [languageSelect, timestampCheck].forEach(el => el.addEventListener('change', () => {

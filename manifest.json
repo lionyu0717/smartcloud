@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "智云课堂字幕导出助手",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "导出浙大智云课堂的视频字幕、PPT 截图和原始课件",
   "permissions": [
     "activeTab",
