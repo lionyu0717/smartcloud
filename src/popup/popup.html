@@ -3,12 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <script src="/lib/docx.min.js"></script>
+    <script src="/lib/jspdf.umd.min.js"></script>
+    <script src="format.js"></script>
+    <script src="slides.js"></script>
     <style>
         body {
-            width: 320px;
+            width: 340px;
             padding: 16px;
             margin: 0;
             font-family: system-ui;
+            font-size: 14px;
+            color: #202124;
         }
 
         .container {
@@ -17,20 +22,60 @@
             gap: 12px;
         }
 
-        .format-select {
-            padding: 8px;
+        .course-info {
+            padding: 8px 10px;
             border-radius: 4px;
-            border: 1px solid #ddd;
+            background: #f1f3f4;
+            font-size: 13px;
+            line-height: 1.5;
         }
 
-        .button-group {
+        .course-info .course-title {
+            font-weight: 600;
+        }
+
+        .course-info .course-meta {
+            color: #5f6368;
+        }
+
+        .section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .section-title {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: #5f6368;
+        }
+
+        .row {
             display: flex;
             gap: 8px;
         }
 
+        .format-select {
+            flex: 1;
+            min-width: 0;
+            padding: 6px 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            background: white;
+        }
+
+        .checkbox {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #3c4043;
+        }
+
         button {
             flex: 1;
-            padding: 8px 12px;
+            padding: 8px 10px;
             border-radius: 4px;
             border: none;
             background: #1a73e8;
@@ -38,9 +83,21 @@
             cursor: pointer;
         }
 
+        button.secondary {
+            background: #e8f0fe;
+            color: #1a73e8;
+        }
+
         button:disabled {
             background: #ccc;
+            color: white;
             cursor: not-allowed;
+        }
+
+        .hint {
+            margin: 0;
+            font-size: 12px;
+            color: #80868b;
         }
 
         .preview-container {
@@ -70,30 +127,56 @@
         }
 
         #status {
-            color: #666;
-            font-size: 14px;
+            color: #5f6368;
             margin: 0;
+            min-height: 1em;
+        }
+
+        hr {
+            width: 100%;
+            margin: 0;
+            border: none;
+            border-top: 1px solid #eee;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <select id="languageSelect" class="format-select">
-            <option value="chinese">仅中文</option>
-            <option value="english">仅英文</option>
-            <option value="bilingual">中英双语</option>
-        </select>
+        <div id="courseInfo" class="course-info">正在读取课程信息...</div>
 
-        <select id="formatSelect" class="format-select">
-            <option value="txt">文本文件 (.txt)</option>
-            <option value="docx">Word文档 (.docx)</option>
-            <option value="md">Markdown (.md)</option>
-        </select>
+        <div class="section">
+            <p class="section-title">文字稿</p>
+            <div class="row">
+                <select id="languageSelect" class="format-select">
+                    <option value="chinese">仅中文</option>
+                    <option value="english">仅英文</option>
+                    <option value="bilingual">中英双语</option>
+                </select>
+                <select id="formatSelect" class="format-select">
+                    <option value="txt">文本 (.txt)</option>
+                    <option value="docx">Word (.docx)</option>
+                    <option value="md">Markdown (.md)</option>
+                    <option value="srt">字幕 (.srt)</option>
+                </select>
+            </div>
+            <label class="checkbox"><input type="checkbox" id="timestampCheck"> 每段前加时间戳</label>
+            <div class="row">
+                <button id="extractBtn">提取文字稿</button>
+                <button id="previewBtn" class="secondary" disabled>预览</button>
+                <button id="exportBtn" disabled>导出</button>
+            </div>
+        </div>
 
-        <div class="button-group">
-            <button id="extractBtn">提取文字稿</button>
-            <button id="previewBtn" disabled>预览内容</button>
-            <button id="exportBtn" disabled>导出文字稿</button>
+        <hr>
+
+        <div class="section">
+            <p class="section-title">PPT 课件</p>
+            <label class="checkbox"><input type="checkbox" id="dedupCheck" checked> 合并重复截图（动画、板书过程只留最完整的一张）</label>
+            <div class="row">
+                <button id="pptPdfBtn">导出 PPT 截图 (PDF)</button>
+                <button id="coursewareBtn" class="secondary">下载原始课件</button>
+            </div>
+            <p class="hint">导出过程中请保持此弹窗打开。</p>
         </div>
 
         <div id="progress" class="progress">

@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "智云课堂字幕导出助手",
-  "version": "1.2.0",
-  "description": "导出浙大智云课堂视频字幕的 Chrome 插件",
+  "version": "1.3.0",
+  "description": "导出浙大智云课堂的视频字幕、PPT 截图和原始课件",
   "permissions": [
     "activeTab",
     "scripting",
-    "downloads"
+    "downloads",
+    "cookies"
   ],
   "host_permissions": [
     "*://*.zju.edu.cn/*"
