@@ -19,13 +19,28 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     }
 });
 
-// 处理跨域请求
+// 处理跨域请求（content script 直接请求被 CORS 拦截时由这里代为请求）
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'fetchTranscript') {
-        fetch(request.url)
-            .then(response => response.json())
+        let url;
+        try {
+            url = new URL(request.url);
+        } catch (e) {
+            sendResponse({ success: false, error: '无效的地址' });
+            return;
+        }
+        // 只允许请求浙大域名
+        if (url.protocol !== 'https:' || !url.hostname.endsWith('.zju.edu.cn')) {
+            sendResponse({ success: false, error: '不允许的地址' });
+            return;
+        }
+        fetch(url.href, { credentials: 'include' })
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
             .then(data => sendResponse({ success: true, data }))
             .catch(error => sendResponse({ success: false, error: error.message }));
         return true; // 保持消息通道开启
     }
-}); 
+});

@@ -34,12 +34,14 @@ A Chrome browser extension for exporting video subtitles from Zhejiang Universit
 
 ## Usage
 
-1. Navigate to a SmartCloud video playback page (supports both East-West Campus and North Campus)
+1. Open a SmartCloud course replay page (the redesigned `interactivemeta.cmc.zju.edu.cn` replay page, as well as the older East-West / North Campus pages)
 2. Click the extension icon in the browser toolbar
 3. Select export language (Chinese/English/Bilingual)
 4. Select export format (.txt/.docx/.md)
 5. Click "Extract Transcript"
-6. After extraction is complete, click "Export Transcript"
+6. After extraction is complete, click "Export Transcript" (optionally "Preview" first)
+
+> If the course has just ended, the speech-recognition transcript may not be ready yet; try again later.
 
 ## Development Guide
 
@@ -91,6 +93,12 @@ Issues and Pull Requests are welcome!
 5. Open a Pull Request
 
 ## Version History
+
+- v1.2.0 (2026-10)
+  - 🔧 Adapted to the redesigned SmartCloud replay page: the transcript is now fetched from the platform's speech-recognition API, with the old page DOM as a fallback ([#2](https://github.com/lionyu0717/smartcloud/issues/2))
+  - 🐛 Fixed the export option not showing up after extraction; added a dedicated "Export Transcript" button ([#1](https://github.com/lionyu0717/smartcloud/issues/1))
+  - 💾 Downloads now go through the `chrome.downloads` API and are named after the course
+  - ♻️ Works on pages opened before the extension was installed (content script is injected on demand)
 
 - v1.1.0 (2024-01)
   - ✨ Added support for North Campus course pages

@@ -1,24 +1,21 @@
-console.log('Libraries:', {
-    docx: window.docx,
-    pdfMake: window.pdfMake
-});
-
 document.addEventListener('DOMContentLoaded', () => {
     const extractBtn = document.getElementById('extractBtn');
     const previewBtn = document.getElementById('previewBtn');
+    const exportBtn = document.getElementById('exportBtn');
     const formatSelect = document.getElementById('formatSelect');
     const languageSelect = document.getElementById('languageSelect');
     const status = document.getElementById('status');
     const progress = document.getElementById('progress');
     const progressBar = document.getElementById('progressBar');
     const previewContainer = document.getElementById('previewContainer');
-    const previewContent = document.getElementById('previewContent');
-    
-    let currentTranscript = {
-        chinese: null,
-        english: null,
-        bilingual: null
+
+    const LANGUAGE_SUFFIX = {
+        chinese: '中文',
+        english: '英文',
+        bilingual: '中英双语'
     };
+
+    let currentTranscript = null;
 
     // 更新进度条
     function updateProgress(percent) {
@@ -31,38 +28,55 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // 向页面发送提取请求；content script 未注入时（如插件安装前已打开的页面）先注入再重试
+    async function requestTranscript(tabId) {
+        try {
+            return await chrome.tabs.sendMessage(tabId, { action: 'extractTranscript' });
+        } catch (error) {
+            await chrome.scripting.executeScript({
+                target: { tabId },
+                files: ['src/content/content.js']
+            });
+            return await chrome.tabs.sendMessage(tabId, { action: 'extractTranscript' });
+        }
+    }
+
     // 提取文字稿
     async function extractTranscript() {
         try {
             status.textContent = '正在提取文字稿...';
             extractBtn.disabled = true;
             previewBtn.disabled = true;
-            progress.style.display = 'block';
+            exportBtn.disabled = true;
             updateProgress(20);
 
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            const response = await chrome.tabs.sendMessage(tab.id, { 
-                action: 'extractTranscript',
-                includeEnglish: true
-            });
+            if (!tab || !/^https?:\/\/[^/]*zju\.edu\.cn\//.test(tab.url || '')) {
+                throw new Error('请在智云课堂的课程回放页面使用本插件');
+            }
 
+            const response = await requestTranscript(tab.id);
             updateProgress(60);
 
-            if (!response.success) {
-                throw new Error(response.error);
+            if (!response || !response.success) {
+                throw new Error(response?.error || '未收到页面响应，请刷新页面后重试');
             }
 
             currentTranscript = {
                 chinese: response.data.chineseText,
                 english: response.data.englishText,
-                bilingual: response.data.bilingualText
+                bilingual: response.data.bilingualText,
+                title: response.data.title
             };
-            
-            status.textContent = `提取成功！(${response.data.location})`;
-            extractBtn.textContent = '导出文字稿';
+
+            status.textContent = `提取成功！共 ${response.data.count} 段（${response.data.location}）`;
             previewBtn.disabled = false;
+            exportBtn.disabled = false;
             updateProgress(100);
 
+            if (previewContainer.style.display === 'block') {
+                previewTranscript();
+            }
         } catch (error) {
             status.textContent = `错误：${error.message}`;
             updateProgress(100);
@@ -71,97 +85,102 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function sanitizeFilename(name) {
+        return name.replace(/[\\/:*?"<>|\n\r]+/g, '_').trim().slice(0, 80);
+    }
+
+    async function buildDocx(content, heading) {
+        const { Document, Paragraph, TextRun, Packer } = docx;
+        const doc = new Document({
+            sections: [{
+                properties: {},
+                children: [
+                    new Paragraph({
+                        children: [new TextRun({ text: heading, bold: true, size: 36 })],
+                        spacing: { after: 200 }
+                    }),
+                    ...content.split('\n\n').map(block =>
+                        new Paragraph({
+                            children: block.split('\n').map((line, i) =>
+                                new TextRun({ text: line.trim(), size: 24, break: i > 0 ? 1 : 0 })
+                            ),
+                            spacing: { after: 120 }
+                        })
+                    )
+                ]
+            }]
+        });
+        return Packer.toBlob(doc);
+    }
+
+    async function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        try {
+            await chrome.downloads.download({ url, filename, saveAs: false });
+        } catch (error) {
+            // downloads API 不可用时退回到 <a download>
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+        // 延迟释放，避免下载尚未开始就失效
+        setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
+    }
+
     // 导出文件
     async function exportFile() {
+        if (!currentTranscript) return;
         try {
-            status.textContent = '正在导出...';
-            extractBtn.disabled = true;
-            updateProgress(20);
-
             const format = formatSelect.value;
             const language = languageSelect.value;
             const content = currentTranscript[language];
-            
+            const languageSuffix = LANGUAGE_SUFFIX[language];
+
+            if (!content) {
+                throw new Error(`该课程没有${languageSuffix}文字稿，请选择其他语言`);
+            }
+
+            status.textContent = '正在导出...';
+            exportBtn.disabled = true;
+            updateProgress(20);
+
+            const title = sanitizeFilename(currentTranscript.title || '') || '文字稿';
+            const heading = `课程文字稿（${languageSuffix}）`;
+            const baseName = `${title}_${languageSuffix}`;
             let blob;
             let filename;
-            const languageSuffix = {
-                chinese: '中文',
-                english: '英文',
-                bilingual: '中英双语'
-            }[language];
 
             switch (format) {
-                case 'txt':
-                    blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-                    filename = `文字稿_${languageSuffix}.txt`;
-                    break;
-                    
                 case 'md':
-                    const mdContent = `# 课程文字稿（${languageSuffix}）\n\n${content}`;
-                    blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
-                    filename = `文字稿_${languageSuffix}.md`;
+                    blob = new Blob([`# ${heading}\n\n${content}\n`], { type: 'text/markdown;charset=utf-8' });
+                    filename = `${baseName}.md`;
                     break;
-                    
                 case 'docx':
                     status.textContent = '正在生成 Word 文档...';
                     updateProgress(40);
-                    
-                    const { Document, Paragraph, TextRun, Packer } = docx;
-                    
-                    const doc = new Document({
-                        sections: [{
-                            properties: {},
-                            children: [
-                                new Paragraph({
-                                    children: [
-                                        new TextRun({
-                                            text: `课程文字稿（${languageSuffix}）`,
-                                            bold: true,
-                                            size: 36
-                                        })
-                                    ],
-                                    spacing: { after: 200 }
-                                }),
-                                ...content.split('\n\n').map(text => 
-                                    new Paragraph({
-                                        children: [
-                                            new TextRun({
-                                                text: text.trim(),
-                                                size: 24
-                                            })
-                                        ],
-                                        spacing: { after: 120 }
-                                    })
-                                )
-                            ]
-                        }]
-                    });
-                    
-                    updateProgress(60);
-                    
-                    blob = await Packer.toBlob(doc);
-                    filename = `文字稿_${languageSuffix}.docx`;
+                    blob = await buildDocx(content, heading);
+                    filename = `${baseName}.docx`;
+                    break;
+                case 'txt':
+                default:
+                    blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                    filename = `${baseName}.txt`;
                     break;
             }
 
-            if (blob) {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                a.click();
-                URL.revokeObjectURL(url);
-                
-                status.textContent = '导出成功！';
-                updateProgress(100);
-            }
-
+            updateProgress(80);
+            await downloadBlob(blob, filename);
+            status.textContent = `导出成功：${filename}`;
+            updateProgress(100);
         } catch (error) {
             console.error('导出错误:', error);
             status.textContent = `导出失败：${error.message}`;
             updateProgress(100);
         } finally {
-            extractBtn.disabled = false;
+            exportBtn.disabled = !currentTranscript;
         }
     }
 
@@ -169,18 +188,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function previewTranscript() {
         if (!currentTranscript) return;
         const language = languageSelect.value;
-        previewContent.textContent = currentTranscript[language];
+        previewContainer.textContent = currentTranscript[language] || `（没有${LANGUAGE_SUFFIX[language]}文字稿）`;
         previewContainer.style.display = 'block';
     }
 
-    // 事件监听
-    extractBtn.addEventListener('click', () => {
-        if (currentTranscript.chinese || currentTranscript.english || currentTranscript.bilingual) {
-            exportFile();
-        } else {
-            extractTranscript();
-        }
-    });
+    extractBtn.addEventListener('click', extractTranscript);
+    previewBtn.addEventListener('click', previewTranscript);
+    exportBtn.addEventListener('click', exportFile);
 
     // 语言切换时更新预览
     languageSelect.addEventListener('change', () => {
@@ -188,166 +202,4 @@ document.addEventListener('DOMContentLoaded', () => {
             previewTranscript();
         }
     });
-
-    previewBtn.addEventListener('click', previewTranscript);
-
-    // 添加预览状态管理
-    const previewState = {
-        currentPage: 1,
-        totalPages: 1,
-        zoomLevel: 1,
-        pages: []
-    };
-
-    // 更新预览函数
-    function updatePreview(settings) {
-        const previewPages = document.getElementById('previewPages');
-        const content = currentTranscript.split('\n\n');
-        
-        // 计算每页内容
-        previewState.pages = [];
-        let currentPageContent = [];
-        let currentHeight = 0;
-        const maxHeight = 900; // 大约A4纸高度的像素值
-        
-        content.forEach(text => {
-            const textHeight = estimateTextHeight(text, settings);
-            if (currentHeight + textHeight > maxHeight) {
-                previewState.pages.push(currentPageContent);
-                currentPageContent = [text];
-                currentHeight = textHeight;
-            } else {
-                currentPageContent.push(text);
-                currentHeight += textHeight;
-            }
-        });
-        
-        if (currentPageContent.length > 0) {
-            previewState.pages.push(currentPageContent);
-        }
-        
-        previewState.totalPages = previewState.pages.length;
-        document.getElementById('totalPages').textContent = previewState.totalPages;
-        
-        // 渲染预览页面
-        renderPreviewPages();
-    }
-
-    // 渲染预览页面
-    function renderPreviewPages() {
-        const previewPages = document.getElementById('previewPages');
-        previewPages.innerHTML = '';
-        
-        previewState.pages.forEach((pageContent, index) => {
-            const page = document.createElement('div');
-            page.className = 'preview-page';
-            page.style.transform = `scale(${previewState.zoomLevel})`;
-            
-            const content = document.createElement('div');
-            content.className = 'preview-content';
-            content.innerHTML = `
-                <h1 style="text-align: center; margin-bottom: 20px;">课程文字稿</h1>
-                ${pageContent.map(text => `<p style="margin-bottom: 10px;">${text}</p>`).join('')}
-            `;
-            
-            // 添加页码
-            if (document.getElementById('showPageNumber').checked) {
-                const pageNumber = document.createElement('div');
-                pageNumber.className = 'page-number';
-                pageNumber.textContent = `第 ${index + 1} 页`;
-                content.appendChild(pageNumber);
-            }
-            
-            page.appendChild(content);
-            previewPages.appendChild(page);
-        });
-    }
-
-    // 缩放控制
-    document.getElementById('zoomIn').onclick = () => {
-        previewState.zoomLevel = Math.min(previewState.zoomLevel + 0.25, 2);
-        updateZoomUI();
-        renderPreviewPages();
-    };
-
-    document.getElementById('zoomOut').onclick = () => {
-        previewState.zoomLevel = Math.max(previewState.zoomLevel - 0.25, 0.5);
-        updateZoomUI();
-        renderPreviewPages();
-    };
-
-    document.getElementById('zoomLevel').onchange = (e) => {
-        const value = e.target.value;
-        if (value === 'fit') {
-            fitToPage();
-        } else {
-            previewState.zoomLevel = parseFloat(value);
-            renderPreviewPages();
-        }
-    };
-
-    // 页面导航
-    document.getElementById('prevPage').onclick = () => {
-        if (previewState.currentPage > 1) {
-            previewState.currentPage--;
-            updatePageNavigation();
-        }
-    };
-
-    document.getElementById('nextPage').onclick = () => {
-        if (previewState.currentPage < previewState.totalPages) {
-            previewState.currentPage++;
-            updatePageNavigation();
-        }
-    };
-
-    document.getElementById('currentPage').onchange = (e) => {
-        const page = parseInt(e.target.value);
-        if (page >= 1 && page <= previewState.totalPages) {
-            previewState.currentPage = page;
-            updatePageNavigation();
-        }
-    };
-
-    // 更新页面导航 UI
-    function updatePageNavigation() {
-        document.getElementById('currentPage').value = previewState.currentPage;
-        document.getElementById('prevPage').disabled = previewState.currentPage === 1;
-        document.getElementById('nextPage').disabled = previewState.currentPage === previewState.totalPages;
-        
-        // 滚动到当前页
-        const pages = document.querySelectorAll('.preview-page');
-        pages[previewState.currentPage - 1]?.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    // 更新缩放 UI
-    function updateZoomUI() {
-        const zoomSelect = document.getElementById('zoomLevel');
-        zoomSelect.value = previewState.zoomLevel;
-    }
-
-    // 适应页面大小
-    function fitToPage() {
-        const container = document.querySelector('.preview-scroll-container');
-        const page = document.querySelector('.preview-page');
-        if (container && page) {
-            const scale = Math.min(
-                (container.clientWidth - 40) / page.clientWidth,
-                (container.clientHeight - 40) / page.clientHeight
-            );
-            previewState.zoomLevel = scale;
-            updateZoomUI();
-            renderPreviewPages();
-        }
-    }
-
-    // 估算文本高度
-    function estimateTextHeight(text, settings) {
-        const fontSize = parseInt(settings.fontSize);
-        const lineHeight = 1.5;
-        const charsPerLine = 50;
-        const lines = Math.ceil(text.length / charsPerLine);
-        return fontSize * lineHeight * lines;
-    }
 });
-
