@@ -4,16 +4,18 @@
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A Chrome browser extension for exporting video subtitles from Zhejiang University's SmartCloud classroom platform. Supports exporting Chinese, English, and bilingual subtitles in multiple file formats. Compatible with both East-West Campus and North Campus course pages.
+A Chrome / Edge extension for exporting study materials from Zhejiang University's SmartCloud classroom platform: lecture transcripts (Chinese, English or bilingual, with optional timestamps or as SRT subtitles), the PPT screenshots merged into a PDF, and the original PPT courseware file.
+
+> **Disclaimer: this extension is for personal study and academic exchange only. Do not use it for commercial purposes.** It only reads materials from course pages you are logged in to and allowed to access, never bypasses access control, and never uploads any data to third-party servers. Please follow Zhejiang University's rules and respect the instructors' copyright.
 
 ## Features
 
-- 🎯 One-click extraction of SmartCloud video subtitles
-- 🌏 Support for Chinese, English, and bilingual export
-- 📄 Multiple export formats (Word, Markdown, Plain Text)
-- 🏫 Compatible with both East-West Campus and North Campus course pages
-- 🎨 Clean and intuitive user interface
-- ⚡️ Fast response with real-time progress updates
+- 🎯 One-click extraction of lecture transcripts in Chinese, English, or bilingual
+- 📄 Export as Word, Markdown, plain text, or SRT subtitles
+- ⏱️ Optional per-paragraph timestamps; file names and titles include the course name, instructor, and lecture time
+- 🖼️ Export the PPT screenshots as a PDF, merging the duplicate shots produced by animations and handwriting
+- 📥 Download the original PPT courseware file (generation is triggered and awaited automatically if needed)
+- 🏫 Works on the redesigned replay page as well as the older East-West / North Campus pages
 
 ## Installation
 
@@ -36,18 +38,26 @@ A Chrome browser extension for exporting video subtitles from Zhejiang Universit
 
 1. Open a SmartCloud course replay page (the redesigned `interactivemeta.cmc.zju.edu.cn` replay page, as well as the older East-West / North Campus pages)
 2. Click the extension icon in the browser toolbar
-3. Select export language (Chinese/English/Bilingual)
-4. Select export format (.txt/.docx/.md)
-5. Click "Extract Transcript"
-6. After extraction is complete, click "Export Transcript" (optionally "Preview" first)
+3. The popup shows the current course name, instructor, and lecture time at the top
 
-> If the course has just ended, the speech-recognition transcript may not be ready yet; try again later.
+**Transcript**
+
+1. Choose the language (Chinese/English/Bilingual) and format (.txt/.docx/.md/.srt); tick "timestamps" if needed
+2. Click "Extract Transcript", then optionally "Preview"
+3. Click "Export"
+
+**PPT**
+
+- **Export PPT screenshots (PDF)**: merges the PPT frames SmartCloud captured during the lecture into one PDF. "Merge duplicate screenshots" is on by default, keeping only the most complete shot of a slide that was captured several times because of animations or handwriting.
+- **Download original courseware**: downloads the original PPT file. If it has not been generated yet, the extension triggers generation (like the "Export courseware" button on the SmartCloud website) and checks every 10 seconds; long lectures may take a few minutes. Use the screenshot PDF when no original courseware is available.
+
+> Keep the popup open while exporting. Transcripts and screenshots of a lecture that just ended may not be ready yet; try again later.
 
 ## Development Guide
 
 ### Requirements
 
-- Node.js >= 14
+- Node.js >= 18 (only needed for running tests)
 - Chrome Browser
 
 ### Local Development
@@ -57,10 +67,10 @@ A Chrome browser extension for exporting video subtitles from Zhejiang Universit
    git clone https://github.com/lionyu0717/smartcloud.git
    ```
 
-2. Install dependencies
+2. Run the unit tests (Node.js 18+)
    ```bash
    cd smartcloud
-   pnpm install
+   npm test
    ```
 
 3. Load the extension in Chrome
@@ -74,10 +84,11 @@ A Chrome browser extension for exporting video subtitles from Zhejiang Universit
 ```
 smartcloud/
 ├── src/
-│   ├── popup/          # Popup window files
+│   ├── popup/          # Popup (format.js: transcript formatting, slides.js: screenshot de-duplication)
 │   ├── content/        # Content scripts
 │   └── background/     # Background scripts
-├── lib/               # Third-party libraries
+├── lib/               # Third-party libraries (docx, jsPDF)
+├── tests/             # Unit tests
 ├── assets/           # Icons and resources
 └── manifest.json     # Extension configuration
 ```
@@ -93,6 +104,12 @@ Issues and Pull Requests are welcome!
 5. Open a Pull Request
 
 ## Version History
+
+- v1.3.0 (2026-10)
+  - 🖼️ Export PPT screenshots as PDF with automatic de-duplication
+  - 📥 Download the original PPT courseware
+  - ⏱️ Timestamps and SRT export for transcripts
+  - 🏷️ Course info in the popup, file names, and document titles
 
 - v1.2.0 (2026-10)
   - 🔧 Adapted to the redesigned SmartCloud replay page: the transcript is now fetched from the platform's speech-recognition API, with the old page DOM as a fallback ([#2](https://github.com/lionyu0717/smartcloud/issues/2))
@@ -117,4 +134,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - [docx.js](https://github.com/dolanmiu/docx) - Word document generation library
+- [jsPDF](https://github.com/parallax/jsPDF) - PDF generation library
+- [zju-learning-cli](https://github.com/geniucker-dev/zju-learning-cli) (MIT) - inspiration for the screenshot de-duplication algorithm and SmartCloud API reference
+- [ZJU-Course-Desktop](https://github.com/huharvey/ZJU-Course-Desktop), [Edgeless](https://github.com/StephenChen1108/edgeless-zju-transcript-exporter) - reference for the courseware export API
 - Zhejiang University SmartCloud Classroom Platform
